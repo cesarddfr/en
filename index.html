@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Descifrador Secreto</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d0f;
+    --surface: #18181c;
+    --surface2: #222228;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.15);
+    --accent: #a8ff78;
+    --accent2: #78ffe8;
+    --text: #f0f0f0;
+    --muted: #888;
+    --danger: #ff6b6b;
+    --mono: 'Space Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse 60% 40% at 50% 0%, rgba(168,255,120,0.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  /* ── LOCK SCREEN ── */
+  #lockScreen {
+    width: 100%;
+    max-width: 380px;
+    text-align: center;
+    animation: fadeIn 0.5s ease;
+  }
+
+  .lock-icon {
+    width: 72px; height: 72px;
+    border: 2px solid var(--accent);
+    border-radius: 50%;
+    margin: 0 auto 2rem;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px;
+    box-shadow: 0 0 32px rgba(168,255,120,0.15);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%,100% { box-shadow: 0 0 32px rgba(168,255,120,0.15); }
+    50% { box-shadow: 0 0 48px rgba(168,255,120,0.3); }
+  }
+
+  #lockScreen h1 {
+    font-size: 1.8rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin-bottom: 0.4rem;
+  }
+
+  #lockScreen p {
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin-bottom: 2rem;
+    font-family: var(--mono);
+  }
+
+  .pin-field {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    padding: 0.9rem 1.2rem;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 1.1rem;
+    width: 100%;
+    letter-spacing: 0.2em;
+    text-align: center;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    margin-bottom: 1rem;
+  }
+  .pin-field:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(168,255,120,0.1);
+  }
+  .pin-field.error {
+    border-color: var(--danger);
+    animation: shake 0.4s ease;
+  }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    20%,60% { transform: translateX(-8px); }
+    40%,80% { transform: translateX(8px); }
+  }
+
+  .btn-primary {
+    width: 100%;
+    background: var(--accent);
+    color: #0d0d0f;
+    border: none;
+    border-radius: 10px;
+    padding: 0.9rem;
+    font-family: var(--sans);
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+    letter-spacing: 0.03em;
+  }
+  .btn-primary:hover { opacity: 0.9; }
+  .btn-primary:active { transform: scale(0.98); }
+
+  .err-msg {
+    color: var(--danger);
+    font-size: 0.8rem;
+    font-family: var(--mono);
+    margin-top: 0.6rem;
+    height: 1.2em;
+  }
+
+  /* ── APP ── */
+  #app {
+    display: none;
+    width: 100%;
+    max-width: 720px;
+    animation: fadeIn 0.5s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2.5rem;
+  }
+
+  .logo {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .logo-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 12px var(--accent);
+  }
+  .logo h1 {
+    font-size: 1.1rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .lock-btn {
+    background: none;
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    color: var(--muted);
+    padding: 0.4rem 0.8rem;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .lock-btn:hover { color: var(--text); border-color: var(--border2); background: var(--surface); }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 4px;
+    margin-bottom: 2rem;
+    border: 1px solid var(--border);
+  }
+  .tab {
+    flex: 1;
+    padding: 0.65rem 1rem;
+    border: none;
+    border-radius: 9px;
+    background: none;
+    color: var(--muted);
+    font-family: var(--sans);
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.02em;
+  }
+  .tab.active {
+    background: var(--surface2);
+    color: var(--text);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  }
+
+  /* Panel */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .panel label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.6rem;
+    font-family: var(--mono);
+  }
+
+  textarea, select, input[type=text], input[type=password] {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    padding: 0.8rem 1rem;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    resize: vertical;
+  }
+  textarea:focus, select:focus, input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(168,255,120,0.08);
+  }
+  textarea { min-height: 110px; line-height: 1.6; }
+  select { appearance: none; cursor: pointer; height: 44px; }
+
+  .row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+  @media (max-width: 480px) { .row { grid-template-columns: 1fr; } }
+
+  .field { margin-bottom: 1rem; }
+  .field:last-child { margin-bottom: 0; }
+
+  .action-bar {
+    display: flex;
+    gap: 0.8rem;
+    margin-top: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    padding: 0.7rem 1.4rem;
+    border-radius: 10px;
+    border: none;
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.03em;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-green { background: var(--accent); color: #0d0d0f; }
+  .btn-green:hover { opacity: 0.9; }
+  .btn-outline {
+    background: none;
+    border: 1px solid var(--border2);
+    color: var(--muted);
+  }
+  .btn-outline:hover { color: var(--text); border-color: rgba(255,255,255,0.25); }
+
+  /* Result */
+  .result-box {
+    background: var(--bg);
+    border: 1px solid var(--border2);
+    border-radius: 12px;
+    padding: 1.2rem;
+    margin-top: 1rem;
+    position: relative;
+    display: none;
+  }
+  .result-box.visible { display: block; animation: fadeIn 0.3s ease; }
+  .result-label {
+    font-size: 0.7rem;
+    font-family: var(--mono);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 0.5rem;
+    font-weight: 700;
+  }
+  .result-text {
+    font-family: var(--mono);
+    font-size: 0.9rem;
+    line-height: 1.7;
+    word-break: break-all;
+    white-space: pre-wrap;
+    color: var(--text);
+  }
+  .copy-btn {
+    position: absolute;
+    top: 0.8rem; right: 0.8rem;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    color: var(--muted);
+    padding: 0.3rem 0.6rem;
+    font-size: 0.72rem;
+    font-family: var(--mono);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .copy-btn:hover { color: var(--text); }
+
+  /* File zone */
+  .dropzone {
+    border: 2px dashed var(--border2);
+    border-radius: 12px;
+    padding: 2rem 1rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--bg);
+  }
+  .dropzone:hover, .dropzone.dragover {
+    border-color: var(--accent);
+    background: rgba(168,255,120,0.03);
+  }
+  .dropzone p { color: var(--muted); font-size: 0.85rem; font-family: var(--mono); line-height: 1.8; }
+  .dropzone .icon { font-size: 2rem; margin-bottom: 0.5rem; }
+  #fileInput { display: none; }
+
+  .file-info {
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: 0.6rem 1rem;
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: var(--accent2);
+    margin-top: 0.8rem;
+    display: none;
+  }
+
+  .status-bar {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--muted);
+    text-align: center;
+    margin-top: 1.5rem;
+    letter-spacing: 0.05em;
+  }
+  .status-bar span { color: var(--accent); }
+
+  .algo-badge {
+    display: inline-block;
+    background: rgba(168,255,120,0.1);
+    color: var(--accent);
+    border-radius: 6px;
+    padding: 0.15rem 0.5rem;
+    font-size: 0.7rem;
+    font-family: var(--mono);
+    border: 1px solid rgba(168,255,120,0.2);
+    margin-left: 0.5rem;
+    vertical-align: middle;
+  }
+
+  .select-wrapper { position: relative; }
+  .select-wrapper::after {
+    content: '▾';
+    position: absolute;
+    right: 1rem; top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    pointer-events: none;
+    font-size: 0.8rem;
+  }
+</style>
+</head>
+<body>
+
+<!-- LOCK SCREEN -->
+<div id="lockScreen">
+  <div class="lock-icon">🔒</div>
+  <h1>Zona Restringida</h1>
+  <p>// introduce la contraseña para continuar</p>
+  <input type="password" class="pin-field" id="passInput" placeholder="••••••••" autocomplete="off" />
+  <button class="btn-primary" onclick="checkPass()">Desbloquear</button>
+  <p class="err-msg" id="errMsg"></p>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <header>
+    <div class="logo">
+      <div class="logo-dot"></div>
+      <h1>Descifrador</h1>
+    </div>
+    <button class="lock-btn" onclick="lockApp()">🔒 Bloquear</button>
+  </header>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('text', this)">Texto / Frase</button>
+    <button class="tab" onclick="switchTab('file', this)">Archivo</button>
+  </div>
+
+  <!-- TEXT TAB -->
+  <div id="textTab">
+    <div class="panel">
+      <div class="row">
+        <div>
+          <label>Algoritmo</label>
+          <div class="select-wrapper">
+            <select id="algo" onchange="updateAlgoInfo()">
+              <option value="base64">Base64</option>
+              <option value="hex">Hexadecimal</option>
+              <option value="rot13">ROT13</option>
+              <option value="caesar">César (desplazamiento)</option>
+              <option value="morse">Morse</option>
+              <option value="binary">Binario</option>
+              <option value="url">URL encoding</option>
+              <option value="reverse">Texto al revés</option>
+              <option value="aes">AES-256 (con clave)</option>
+            </select>
+          </div>
+        </div>
+        <div id="caesarField" style="display:none">
+          <label>Desplazamiento César</label>
+          <input type="text" id="caesarShift" value="3" style="height:44px" />
+        </div>
+        <div id="aesKeyField" style="display:none">
+          <label>Clave AES</label>
+          <input type="password" id="aesKey" placeholder="Clave secreta" style="height:44px" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Texto encriptado</label>
+        <textarea id="inputText" placeholder="Pega aquí el texto encriptado..."></textarea>
+      </div>
+
+      <div class="action-bar">
+        <button class="btn btn-green" onclick="decryptText()">⟲ Descifrar</button>
+        <button class="btn btn-outline" onclick="encryptText()">⟳ Cifrar</button>
+        <button class="btn btn-outline" onclick="clearText()">✕ Limpiar</button>
+        <button class="btn btn-outline" onclick="autoDetect()">⚡ Auto-detectar</button>
+      </div>
+    </div>
+
+    <div class="result-box" id="textResult">
+      <div class="result-label">Resultado</div>
+      <button class="copy-btn" onclick="copyResult()">copiar</button>
+      <div class="result-text" id="textResultContent"></div>
+    </div>
+  </div>
+
+  <!-- FILE TAB -->
+  <div id="fileTab" style="display:none">
+    <div class="panel">
+      <div class="row">
+        <div>
+          <label>Algoritmo</label>
+          <div class="select-wrapper">
+            <select id="fileAlgo">
+              <option value="base64">Base64</option>
+              <option value="hex">Hexadecimal</option>
+              <option value="rot13">ROT13</option>
+              <option value="reverse">Texto al revés</option>
+            </select>
+          </div>
+        </div>
+        <div id="fileNote" style="display:flex; align-items:flex-end; padding-bottom:4px;">
+          <p style="font-family:var(--mono); font-size:0.75rem; color:var(--muted); line-height:1.5">Solo archivos de texto (.txt, .csv, etc.) para esta versión</p>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Archivo encriptado</label>
+        <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()"
+             ondragover="event.preventDefault(); this.classList.add('dragover')"
+             ondragleave="this.classList.remove('dragover')"
+             ondrop="handleDrop(event)">
+          <div class="icon">📁</div>
+          <p>Arrastra tu archivo aquí<br>o <strong style="color:var(--accent)">haz clic para seleccionar</strong></p>
+        </div>
+        <input type="file" id="fileInput" accept=".txt,.csv,.log,.md,.json,.xml,.html" onchange="handleFileSelect(event)" />
+        <div class="file-info" id="fileInfo"></div>
+      </div>
+
+      <div class="action-bar">
+        <button class="btn btn-green" onclick="decryptFile()">⟲ Descifrar archivo</button>
+        <button class="btn btn-outline" onclick="downloadResult()">↓ Descargar resultado</button>
+      </div>
+    </div>
+
+    <div class="result-box" id="fileResult">
+      <div class="result-label">Contenido descifrado</div>
+      <button class="copy-btn" onclick="copyFileResult()">copiar</button>
+      <div class="result-text" id="fileResultContent"></div>
+    </div>
+  </div>
+
+  <p class="status-bar">sesión activa · <span id="sessionTime">0s</span></p>
+</div>
+
+<script>
+const PASSWORD = 'patata';
+let sessionStart = null;
+let sessionTimer = null;
+let fileContent = '';
+let lastFileResult = '';
+
+function checkPass() {
+  const val = document.getElementById('passInput').value;
+  const field = document.getElementById('passInput');
+  const err = document.getElementById('errMsg');
+  if (val === PASSWORD) {
+    document.getElementById('lockScreen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    sessionStart = Date.now();
+    sessionTimer = setInterval(updateSession, 1000);
+  } else {
+    field.classList.add('error');
+    err.textContent = '⚠ Contraseña incorrecta';
+    setTimeout(() => { field.classList.remove('error'); field.value = ''; }, 600);
+  }
+}
+
+document.getElementById('passInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') checkPass();
+});
+
+function lockApp() {
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('lockScreen').style.display = 'block';
+  document.getElementById('passInput').value = '';
+  document.getElementById('errMsg').textContent = '';
+  clearInterval(sessionTimer);
+}
+
+function updateSession() {
+  const s = Math.floor((Date.now() - sessionStart) / 1000);
+  const m = Math.floor(s / 60), sec = s % 60;
+  document.getElementById('sessionTime').textContent = m > 0 ? `${m}m ${sec}s` : `${sec}s`;
+}
+
+function switchTab(tab, btn) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('textTab').style.display = tab === 'text' ? 'block' : 'none';
+  document.getElementById('fileTab').style.display = tab === 'file' ? 'block' : 'none';
+}
+
+function updateAlgoInfo() {
+  const algo = document.getElementById('algo').value;
+  document.getElementById('caesarField').style.display = algo === 'caesar' ? 'block' : 'none';
+  document.getElementById('aesKeyField').style.display = algo === 'aes' ? 'block' : 'none';
+}
+
+// ── DECRYPTION ENGINES ──
+
+function b64decode(str) {
+  try { return atob(str.trim()); } catch { return '⚠ Base64 inválido'; }
+}
+function b64encode(str) { return btoa(unescape(encodeURIComponent(str))); }
+
+function hexDecode(str) {
+  const h = str.replace(/\s/g,'');
+  if (!/^[0-9a-fA-F]*$/.test(h) || h.length % 2 !== 0) return '⚠ Hexadecimal inválido';
+  let r = '';
+  for (let i = 0; i < h.length; i += 2) r += String.fromCharCode(parseInt(h.slice(i,i+2),16));
+  try { return decodeURIComponent(escape(r)); } catch { return r; }
+}
+function hexEncode(str) { return Array.from(str).map(c=>c.charCodeAt(0).toString(16).padStart(2,'0')).join(''); }
+
+function rot13(str) {
+  return str.replace(/[a-zA-Z]/g, c => {
+    const base = c <= 'Z' ? 65 : 97;
+    return String.fromCharCode(((c.charCodeAt(0) - base + 13) % 26) + base);
+  });
+}
+
+function caesarDecode(str, shift) {
+  shift = ((shift % 26) + 26) % 26;
+  return str.replace(/[a-zA-Z]/g, c => {
+    const base = c <= 'Z' ? 65 : 97;
+    return String.fromCharCode(((c.charCodeAt(0) - base - shift + 26) % 26) + base);
+  });
+}
+function caesarEncode(str, shift) {
+  shift = ((shift % 26) + 26) % 26;
+  return str.replace(/[a-zA-Z]/g, c => {
+    const base = c <= 'Z' ? 65 : 97;
+    return String.fromCharCode(((c.charCodeAt(0) - base + shift) % 26) + base);
+  });
+}
+
+const MORSE = {
+  '.-':'A','-.-.':'C','-.':'D','.':'E','..-.':'F','--.':'G','....':'H','..':'I',
+  '.---':'J','-.-':'K','.-..':'L','--':'M','-.':'N','---':'O','.--.':'P','--.-':'Q',
+  '.-.':'R','...':'S','-':'T','..-':'U','...-':'V','.--':'W','-..-':'X','-.--':'Y',
+  '--..':'Z','-----':'0','.----':'1','..---':'2','...--':'3','....-':'4','.....-':'5',
+  '-....':'6','--...':'7','---..':'8','----.':'9',
+  '.-':'A','...---...':'SOS'
+};
+const MORSE_REV = {A:'.-',B:'-...',C:'-.-.',D:'-..',E:'.',F:'..-.',G:'--.',H:'....',I:'..',J:'.---',K:'-.-',L:'.-..',M:'--',N:'-.',O:'---',P:'.--.',Q:'--.-',R:'.-.',S:'...',T:'-',U:'..-',V:'...-',W:'.--',X:'-..-',Y:'-.--',Z:'--..',0:'-----',1:'.----',2:'..---',3:'...--',4:'....-',5:'.....',6:'-....',7:'--...',8:'--..',9:'----.'};
+
+function morseDecode(str) {
+  return str.trim().split('   ').map(w =>
+    w.split(' ').map(c => MORSE[c] || '?').join('')
+  ).join(' ');
+}
+function morseEncode(str) {
+  return str.toUpperCase().split('').map(c =>
+    c === ' ' ? '   ' : (MORSE_REV[c] || c)
+  ).join(' ');
+}
+
+function binaryDecode(str) {
+  const cleaned = str.replace(/\s+/g,' ').trim();
+  const parts = cleaned.split(' ');
+  if (!parts.every(p => /^[01]{8}$/.test(p))) return '⚠ Binario inválido (necesita grupos de 8 bits separados por espacio)';
+  return parts.map(b => String.fromCharCode(parseInt(b,2))).join('');
+}
+function binaryEncode(str) {
+  return Array.from(str).map(c => c.charCodeAt(0).toString(2).padStart(8,'0')).join(' ');
+}
+
+function urlDecode(str) { try { return decodeURIComponent(str); } catch { return '⚠ URL encoding inválido'; } }
+function urlEncode(str) { return encodeURIComponent(str); }
+
+function reverseDecode(str) { return str.split('').reverse().join(''); }
+
+// AES via Web Crypto
+async function aesDecrypt(ciphertext, keyStr) {
+  try {
+    const enc = new TextEncoder();
+    const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(keyStr.padEnd(32,' ').slice(0,32)), 'AES-GCM', false, ['decrypt']);
+    const data = Uint8Array.from(atob(ciphertext), c => c.charCodeAt(0));
+    const iv = data.slice(0,12), ct = data.slice(12);
+    const plain = await crypto.subtle.decrypt({name:'AES-GCM', iv}, keyMaterial, ct);
+    return new TextDecoder().decode(plain);
+  } catch { return '⚠ Descifrado AES fallido. Verifica la clave.'; }
+}
+async function aesEncrypt(plaintext, keyStr) {
+  try {
+    const enc = new TextEncoder();
+    const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(keyStr.padEnd(32,' ').slice(0,32)), 'AES-GCM', false, ['encrypt']);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = await crypto.subtle.encrypt({name:'AES-GCM', iv}, keyMaterial, enc.encode(plaintext));
+    const combined = new Uint8Array(iv.length + ct.byteLength);
+    combined.set(iv); combined.set(new Uint8Array(ct), iv.length);
+    return btoa(String.fromCharCode(...combined));
+  } catch { return '⚠ Error de cifrado AES.'; }
+}
+
+function showResult(id, text) {
+  const box = document.getElementById(id);
+  const content = document.getElementById(id+'Content');
+  content.textContent = text;
+  box.classList.add('visible');
+}
+
+async function decryptText() {
+  const algo = document.getElementById('algo').value;
+  const input = document.getElementById('inputText').value;
+  if (!input.trim()) return;
+  let result = '';
+  switch(algo) {
+    case 'base64': result = b64decode(input); break;
+    case 'hex': result = hexDecode(input); break;
+    case 'rot13': result = rot13(input); break;
+    case 'caesar':
+      const shift = parseInt(document.getElementById('caesarShift').value) || 3;
+      result = caesarDecode(input, shift); break;
+    case 'morse': result = morseDecode(input); break;
+    case 'binary': result = binaryDecode(input); break;
+    case 'url': result = urlDecode(input); break;
+    case 'reverse': result = reverseDecode(input); break;
+    case 'aes':
+      const key = document.getElementById('aesKey').value;
+      if (!key) { showResult('textResult', '⚠ Introduce la clave AES'); return; }
+      result = await aesDecrypt(input, key); break;
+  }
+  showResult('textResult', result);
+}
+
+async function encryptText() {
+  const algo = document.getElementById('algo').value;
+  const input = document.getElementById('inputText').value;
+  if (!input.trim()) return;
+  let result = '';
+  switch(algo) {
+    case 'base64': result = b64encode(input); break;
+    case 'hex': result = hexEncode(input); break;
+    case 'rot13': result = rot13(input); break;
+    case 'caesar':
+      const shift = parseInt(document.getElementById('caesarShift').value) || 3;
+      result = caesarEncode(input, shift); break;
+    case 'morse': result = morseEncode(input); break;
+    case 'binary': result = binaryEncode(input); break;
+    case 'url': result = urlEncode(input); break;
+    case 'reverse': result = reverseDecode(input); break;
+    case 'aes':
+      const key = document.getElementById('aesKey').value;
+      if (!key) { showResult('textResult', '⚠ Introduce la clave AES'); return; }
+      result = await aesEncrypt(input, key); break;
+  }
+  showResult('textResult', result);
+}
+
+function autoDetect() {
+  const input = document.getElementById('inputText').value.trim();
+  if (!input) return;
+  let detected = '';
+  // Base64
+  if (/^[A-Za-z0-9+/]+=*$/.test(input) && input.length % 4 === 0) {
+    try { atob(input); detected = 'base64'; } catch {}
+  }
+  // Hex
+  if (!detected && /^[0-9a-fA-F\s]+$/.test(input) && input.replace(/\s/g,'').length % 2 === 0) detected = 'hex';
+  // Binary
+  if (!detected && /^[01\s]+$/.test(input) && input.trim().split(' ').every(b => b.length === 8)) detected = 'binary';
+  // Morse
+  if (!detected && /^[.\-\s]+$/.test(input)) detected = 'morse';
+  // URL
+  if (!detected && input.includes('%')) detected = 'url';
+
+  if (detected) {
+    document.getElementById('algo').value = detected;
+    updateAlgoInfo();
+    showResult('textResult', `⚡ Auto-detectado: ${detected.toUpperCase()} — pulsa "Descifrar" para continuar.`);
+  } else {
+    showResult('textResult', '? No se pudo detectar el algoritmo automáticamente.');
+  }
+}
+
+function clearText() {
+  document.getElementById('inputText').value = '';
+  document.getElementById('textResult').classList.remove('visible');
+}
+
+function copyResult() {
+  const text = document.getElementById('textResultContent').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector('#textResult .copy-btn');
+    btn.textContent = '✓ copiado';
+    setTimeout(() => btn.textContent = 'copiar', 1500);
+  });
+}
+function copyFileResult() {
+  const text = document.getElementById('fileResultContent').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector('#fileResult .copy-btn');
+    btn.textContent = '✓ copiado';
+    setTimeout(() => btn.textContent = 'copiar', 1500);
+  });
+}
+
+// FILE HANDLING
+function handleFileSelect(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  loadFile(file);
+}
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('dropzone').classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file) loadFile(file);
+}
+function loadFile(file) {
+  const reader = new FileReader();
+  reader.onload = ev => {
+    fileContent = ev.target.result;
+    const info = document.getElementById('fileInfo');
+    info.style.display = 'block';
+    info.textContent = `📄 ${file.name}  ·  ${(file.size/1024).toFixed(1)} KB`;
+  };
+  reader.readAsText(file);
+}
+
+function decryptFile() {
+  if (!fileContent) { alert('Selecciona un archivo primero'); return; }
+  const algo = document.getElementById('fileAlgo').value;
+  let result = '';
+  switch(algo) {
+    case 'base64': result = b64decode(fileContent); break;
+    case 'hex': result = hexDecode(fileContent); break;
+    case 'rot13': result = rot13(fileContent); break;
+    case 'reverse': result = reverseDecode(fileContent); break;
+  }
+  lastFileResult = result;
+  showResult('fileResult', result);
+}
+
+function downloadResult() {
+  if (!lastFileResult) { alert('Descifra un archivo primero'); return; }
+  const blob = new Blob([lastFileResult], {type:'text/plain'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'descifrado.txt';
+  a.click();
+}
+</script>
+</body>
+</html>
